@@ -4,12 +4,15 @@ Simple trading system:
 - Track crypto prices from Binance and Huobi 
 - Let user trade with a virtual wallet
 
-# Specs
 
-- Java 21
-- Spring Boot 3.5.8
-- H2 Database (in-memory)
+# Project Structure
 
+```
+src/main/java/com/trading/system/
+├── domain/              # Business logic, repositories, models, entites, exception
+├── application/         # Services, APIs, Exception handlers
+└── infrastructure/      # Binance/Huobi clients, config, schedulers)
+```
 
 # API Endpoints
 
@@ -49,7 +52,7 @@ GET /api/trades
 ```
 Lists all your past trades.
 
-## Configuration
+# Configuration
 
 Edit `src/main/resources/application.yaml` to change settings:
 
@@ -59,17 +62,25 @@ trading:
     max-age-seconds: 30
 ```
 
-### Notes
+## Notes
 - Binance or Houbi can be possibly down (AWS Outage, Cloudfare outage, etc). In that case, we should not let users trade with the old best prices.
 - We define the `max-ages` for each prices (default is 30s).
 - If the prices from DB is over 30s, we will deny the API request to trade from user.
 
+# Important note
+## Rate Limiter
+- Fetch data from Binance and Huobi is rate limited. It could potentially block the IP when we make too many requests.
+- Implement Rate Limiter using Resilience4j to avoid that. Currently, the configuration is 90 requests per 10 seconds.
+## Race Condition
+- We only have 1 Wallet, so we need to make sure there is no race condition.
+- Use Optimistic Locking to avoid race condition.
 
-## Project Structure
+## Exception Handling
+- Implement global exception handler to handle exceptions.
 
-```
-src/main/java/com/trading/system/
-├── domain/              # Business logic, repositories, models, entites, exception
-├── application/         # Services, APIs, Exception handlers
-└── infrastructure/      # Binance/Huobi clients, config, schedulers)
-```
+
+# Potential enhancemant
+- API versioning
+- Authentication/Authorization
+- More test cases
+

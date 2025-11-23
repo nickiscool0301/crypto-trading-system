@@ -18,7 +18,7 @@ spring:
     hibernate:
       ddl-auto: create-drop
     #DEBUG
-    show-sql: true
+    # show-sql: true
     defer-datasource-initialization: true
   sql:
     init:
