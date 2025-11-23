@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -161,6 +162,69 @@ class TradeServiceTest {
 
 		verify(tradeRepository, never()).save(any());
 		verify(walletRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldThrowOptimisticLockExceptionOnConcurrentTrade() {
+		var request = new TradeRequest(
+				"ETHUSDT",
+				OrderAction.BUY,
+				new BigDecimal("1.00000000"));
+
+		when(walletRepository.findById(WALLET_ID)).thenReturn(Optional.of(wallet));
+		when(aggregatedPriceRepository.findLatestBySymbol("ETHUSDT")).thenReturn(Optional.of(ethPrice));
+
+		when(walletRepository.save(any()))
+				.thenThrow(new ObjectOptimisticLockingFailureException(Wallet.class, WALLET_ID));
+
+		assertThatThrownBy(() -> tradeService.executeTrade(request))
+				.isInstanceOf(ObjectOptimisticLockingFailureException.class);
+
+		verify(tradeRepository, never()).save(any());
+	}
+
+	@Test
+	void shouldSucceedAfterOptimisticLockFailure() {
+		// Stimulation: Trade A succeeds → Trade B fails → Trade B retry succeeds
+		var request = new TradeRequest(
+				"ETHUSDT",
+				OrderAction.BUY,
+				new BigDecimal("1.00000000"));
+
+		var savedTrade = new Trade("ETHUSDT", OrderAction.BUY, request.quantity(), ethPrice.getAskPrice());
+
+		when(walletRepository.findById(WALLET_ID))
+				.thenReturn(Optional.of(wallet))
+				.thenReturn(Optional.of(wallet))
+				.thenAnswer(inv -> { // Trade B - retry (fresh wallet)
+					wallet.setVersion(1L);
+					wallet.setUsdtBalance(new BigDecimal("7195.00000000"));
+					wallet.setEthBalance(new BigDecimal("6.00000000"));
+					return Optional.of(wallet);
+				});
+
+		when(aggregatedPriceRepository.findLatestBySymbol("ETHUSDT"))
+				.thenReturn(Optional.of(ethPrice));
+
+		when(tradeRepository.save(any()))
+				.thenReturn(savedTrade);
+
+		when(walletRepository.save(any()))
+				.thenReturn(wallet)
+				.thenThrow(new ObjectOptimisticLockingFailureException(Wallet.class, WALLET_ID))
+				.thenReturn(wallet);
+
+		var responseA = tradeService.executeTrade(request);
+		assertThat(responseA).isNotNull();
+
+		assertThatThrownBy(() -> tradeService.executeTrade(request))
+				.isInstanceOf(ObjectOptimisticLockingFailureException.class);
+
+		var responseBRetry = tradeService.executeTrade(request);
+		assertThat(responseBRetry).isNotNull();
+
+		verify(tradeRepository, times(2)).save(any());
+		verify(walletRepository, times(3)).save(any());
 	}
 
 }

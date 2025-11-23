@@ -1,6 +1,7 @@
 package com.trading.system.application.exception;
 
 import com.trading.system.application.dto.ErrorResponse;
+import com.trading.system.domain.exception.ConcurrentTradeException;
 import com.trading.system.domain.exception.InsufficientBalanceException;
 import com.trading.system.domain.exception.PriceNotFoundException;
 import com.trading.system.domain.exception.StalePriceException;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -69,6 +71,16 @@ public class GlobalExceptionHandler {
                 ex.getMessage(),
                 HttpStatus.SERVICE_UNAVAILABLE.value());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(error);
+    }
+
+    @ExceptionHandler({ ObjectOptimisticLockingFailureException.class, ConcurrentTradeException.class })
+    public ResponseEntity<ErrorResponse> handleConcurrentTrade(Exception ex) {
+        log.warn("Concurrent trade detected: {}", ex.getMessage());
+        var error = new ErrorResponse(
+                "CONCURRENT_TRADE",
+                "Another trade is being processed on this wallet. Please try again.",
+                HttpStatus.CONFLICT.value());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
     }
 
     // Wrap exception from spring validation
