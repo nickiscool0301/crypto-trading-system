@@ -6,6 +6,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,8 +16,6 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 
-import org.hibernate.annotations.UpdateTimestamp;
-
 @Entity
 @Table(name = "aggregated_prices", uniqueConstraints = @UniqueConstraint(columnNames = { "symbol" }))
 @Getter
@@ -25,8 +24,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class AggregatedPrice {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false, unique = true)
     private String symbol;
@@ -38,13 +37,11 @@ public class AggregatedPrice {
     private BigDecimal askPrice;
 
     @Column(nullable = false)
-    @UpdateTimestamp
     private LocalDateTime timestamp;
 
     public AggregatedPrice(String symbol, BigDecimal bidPrice, BigDecimal askPrice) {
         this.symbol = symbol;
         this.bidPrice = bidPrice;
         this.askPrice = askPrice;
-        this.timestamp = LocalDateTime.now();
     }
 }

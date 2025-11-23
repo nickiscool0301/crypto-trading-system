@@ -15,9 +15,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
+import java.util.UUID;
 
 @Entity
 @Table(name = "trades")
@@ -27,8 +25,8 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class Trade {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @Column(nullable = false, length = 20)
     private String symbol;
@@ -47,7 +45,6 @@ public class Trade {
     private BigDecimal totalAmount;
 
     @Column(nullable = false)
-    @CreationTimestamp
     private LocalDateTime timestamp;
 
     public Trade(String symbol, OrderAction orderAction, BigDecimal quantity, BigDecimal price) {
@@ -56,5 +53,6 @@ public class Trade {
         this.quantity = quantity;
         this.price = price;
         this.totalAmount = quantity.multiply(price);
+        this.timestamp = LocalDateTime.now();
     }
 }

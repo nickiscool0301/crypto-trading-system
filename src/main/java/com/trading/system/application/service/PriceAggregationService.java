@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,11 +33,12 @@ public class PriceAggregationService {
         log.info("Starting price aggregation for {} symbols across {} exchanges",
                 SUPPORTED_SYMBOLS.size(), exchangeClients.size());
 
+        var aggregationTimestamp = LocalDateTime.now();
         var allExchangePrices = fetchPricesFromExchanges();
 
         for (String symbol : SUPPORTED_SYMBOLS) {
             try {
-                aggregateAndSaveForSymbol(symbol, allExchangePrices);
+                aggregateAndSaveForSymbol(symbol, allExchangePrices, aggregationTimestamp);
             } catch (Exception e) {
                 log.error("Failed to aggregate price for {}: {}", symbol, e.getMessage(), e);
             }
@@ -59,7 +61,8 @@ public class PriceAggregationService {
         return allExchangePrices;
     }
 
-    private void aggregateAndSaveForSymbol(String symbol, Map<String, Map<String, TickerPrice>> allExchangePrices) {
+    private void aggregateAndSaveForSymbol(String symbol, Map<String, Map<String, TickerPrice>> allExchangePrices,
+            LocalDateTime timestamp) {
         var bidPrices = new ArrayList<BigDecimal>();
         var askPrices = new ArrayList<BigDecimal>();
 
@@ -77,13 +80,14 @@ public class PriceAggregationService {
         var bestPrices = priceAggregator.findBestPrices(bidPrices, askPrices);
 
         if (bestPrices != null) {
-            updateOrCreatePrice(symbol, bestPrices[0], bestPrices[1]);
+            updateOrCreatePrice(symbol, bestPrices[0], bestPrices[1], timestamp);
         } else {
             log.warn("No prices available for {}", symbol);
         }
     }
 
-    private void updateOrCreatePrice(String symbol, BigDecimal bestBid, BigDecimal bestAsk) {
+    private void updateOrCreatePrice(String symbol, BigDecimal bestBid, BigDecimal bestAsk,
+            LocalDateTime timestamp) {
         var price = repository.findLatestBySymbol(symbol)
                 .orElse(new AggregatedPrice());
 
@@ -91,8 +95,9 @@ public class PriceAggregationService {
         price.setSymbol(symbol);
         price.setBidPrice(bestBid);
         price.setAskPrice(bestAsk);
+        price.setTimestamp(timestamp);
 
         repository.save(price);
-        log.info("Updated aggregated price for {}: bid={}, ask={}", symbol, bestBid, bestAsk);
+        log.info("Updated aggregated price for {}: bid={}, ask={}, timestamp={}", symbol, bestBid, bestAsk, timestamp);
     }
 }

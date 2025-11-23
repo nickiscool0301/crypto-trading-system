@@ -15,13 +15,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class TradeService {
 
-    private static final Long WALLET_ID = 1L;
+    private static final UUID WALLET_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
     private final WalletRepository walletRepository;
     private final TradeRepository tradeRepository;
     private final AggregatedPriceRepository aggregatedPriceRepository;

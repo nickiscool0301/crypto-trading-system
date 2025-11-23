@@ -1,10 +1,12 @@
 package com.trading.system.application.service;
 
 import com.trading.system.application.dto.WalletBalanceResponse;
-import com.trading.system.domain.model.Wallet;
 import com.trading.system.domain.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.UUID;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class WalletService {
 
-    private static final Long WALLET_ID = 1L;
+    private static final UUID WALLET_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
     private final WalletRepository walletRepository;
 
     @Transactional(readOnly = true)
