@@ -1,5 +1,6 @@
 package com.trading.system.domain.model;
 
+import com.trading.system.domain.exception.InsufficientBalanceException;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -48,7 +49,7 @@ public class Wallet {
 
     public void deductUsdt(BigDecimal amount) {
         if (usdtBalance.compareTo(amount) < 0) {
-            throw new RuntimeException("Insufficient USDT balance");
+            throw new InsufficientBalanceException("USDT", amount, usdtBalance);
         }
         this.usdtBalance = this.usdtBalance.subtract(amount);
     }
@@ -59,7 +60,7 @@ public class Wallet {
 
     public void deductEth(BigDecimal amount) {
         if (ethBalance.compareTo(amount) < 0) {
-            throw new RuntimeException("Insufficient ETH balance");
+            throw new InsufficientBalanceException("ETH", amount, ethBalance);
         }
         this.ethBalance = this.ethBalance.subtract(amount);
     }
@@ -70,7 +71,7 @@ public class Wallet {
 
     public void deductBtc(BigDecimal amount) {
         if (btcBalance.compareTo(amount) < 0) {
-            throw new RuntimeException("Insufficient BTC balance");
+            throw new InsufficientBalanceException("BTC", amount, btcBalance);
         }
         this.btcBalance = this.btcBalance.subtract(amount);
     }

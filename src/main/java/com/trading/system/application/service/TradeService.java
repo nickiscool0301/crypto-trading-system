@@ -2,6 +2,10 @@ package com.trading.system.application.service;
 
 import com.trading.system.application.dto.TradeRequest;
 import com.trading.system.application.dto.TradeResponse;
+import com.trading.system.domain.exception.PriceNotFoundException;
+import com.trading.system.domain.exception.StalePriceException;
+import com.trading.system.domain.exception.UnsupportedSymbolException;
+import com.trading.system.domain.exception.WalletNotFoundException;
 import com.trading.system.domain.model.AggregatedPrice;
 import com.trading.system.domain.model.OrderAction;
 import com.trading.system.domain.model.Trade;
@@ -11,10 +15,13 @@ import com.trading.system.domain.repository.TradeRepository;
 import com.trading.system.domain.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -23,6 +30,10 @@ import java.util.UUID;
 public class TradeService {
 
     private static final UUID WALLET_ID = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
+
+    @Value("${trading.price.max-age-seconds:30}")
+    private long maxPriceAgeSeconds;
+
     private final WalletRepository walletRepository;
     private final TradeRepository tradeRepository;
     private final AggregatedPriceRepository aggregatedPriceRepository;
@@ -33,10 +44,12 @@ public class TradeService {
                 request.symbol(), request.orderAction(), request.quantity());
 
         var wallet = walletRepository.findById(WALLET_ID)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new WalletNotFoundException(WALLET_ID));
 
         var latestPrice = aggregatedPriceRepository.findLatestBySymbol(request.symbol())
-                .orElseThrow(() -> new RuntimeException("Price not found for symbol: " + request.symbol()));
+                .orElseThrow(() -> new PriceNotFoundException(request.symbol()));
+
+        validatePriceFreshness(latestPrice);
 
         BigDecimal executionPrice = determineExecutionPrice(latestPrice, request.orderAction());
         BigDecimal totalAmount = request.quantity().multiply(executionPrice);
@@ -60,6 +73,19 @@ public class TradeService {
                 savedTrade.getTimestamp());
     }
 
+    private void validatePriceFreshness(AggregatedPrice price) {
+        var priceAge = Duration.between(price.getTimestamp(), LocalDateTime.now());
+        var maxAge = Duration.ofSeconds(maxPriceAgeSeconds);
+
+        if (priceAge.compareTo(maxAge) > 0) {
+            log.warn("Price for {} is stale. Age: {} seconds, Max allowed: {} seconds",
+                    price.getSymbol(), priceAge.getSeconds(), maxAge.getSeconds());
+            throw new StalePriceException(price.getSymbol(), price.getTimestamp(), maxAge);
+        }
+
+        log.debug("Price for {} is fresh. Age: {} seconds", price.getSymbol(), priceAge.getSeconds());
+    }
+
     private BigDecimal determineExecutionPrice(AggregatedPrice price, OrderAction orderAction) {
         return orderAction == OrderAction.BUY ? price.getAskPrice() : price.getBidPrice();
     }
@@ -69,7 +95,7 @@ public class TradeService {
         switch (symbol) {
             case "ETHUSDT" -> updateEthBalance(wallet, orderAction, quantity, totalAmount);
             case "BTCUSDT" -> updateBtcBalance(wallet, orderAction, quantity, totalAmount);
-            default -> throw new RuntimeException("Unsupported symbol: " + symbol);
+            default -> throw new UnsupportedSymbolException(symbol);
         }
     }
 

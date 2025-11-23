@@ -1,5 +1,6 @@
 package com.trading.system.domain.model;
 
+import com.trading.system.domain.exception.InsufficientBalanceException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,8 +32,8 @@ class WalletTest {
     void shouldThrowExceptionWhenDeductingUsdtWithInsufficientBalance() {
         var amount = new BigDecimal("15000.00000000");
         assertThatThrownBy(() -> wallet.deductUsdt(amount))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Insufficient USDT balance");
+                .isInstanceOf(InsufficientBalanceException.class)
+                .hasMessageContaining("Insufficient USDT balance");
         assertThat(wallet.getUsdtBalance()).isEqualTo(new BigDecimal("10000.00000000"));
     }
 
@@ -54,8 +55,8 @@ class WalletTest {
     void shouldThrowExceptionWhenDeductingEthWithInsufficientBalance() {
         var amount = new BigDecimal("10.00000000");
         assertThatThrownBy(() -> wallet.deductEth(amount))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Insufficient ETH balance");
+                .isInstanceOf(InsufficientBalanceException.class)
+                .hasMessageContaining("Insufficient ETH balance");
         assertThat(wallet.getEthBalance()).isEqualTo(new BigDecimal("5.00000000"));
     }
 
@@ -77,8 +78,8 @@ class WalletTest {
     void shouldThrowExceptionWhenDeductingBtcWithInsufficientBalance() {
         var amount = new BigDecimal("1.00000000");
         assertThatThrownBy(() -> wallet.deductBtc(amount))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Insufficient BTC balance");
+                .isInstanceOf(InsufficientBalanceException.class)
+                .hasMessageContaining("Insufficient BTC balance");
         assertThat(wallet.getBtcBalance()).isEqualTo(new BigDecimal("0.50000000"));
     }
 

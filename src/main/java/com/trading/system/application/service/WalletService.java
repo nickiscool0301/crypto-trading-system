@@ -1,6 +1,7 @@
 package com.trading.system.application.service;
 
 import com.trading.system.application.dto.WalletBalanceResponse;
+import com.trading.system.domain.exception.WalletNotFoundException;
 import com.trading.system.domain.repository.WalletRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ public class WalletService {
 
         // We only have 1 wallet in the system
         var wallet = walletRepository.findById(WALLET_ID)
-                .orElseThrow(() -> new RuntimeException("Wallet not found"));
+                .orElseThrow(() -> new WalletNotFoundException(WALLET_ID));
 
         return new WalletBalanceResponse(
                 wallet.getUsdtBalance(),
