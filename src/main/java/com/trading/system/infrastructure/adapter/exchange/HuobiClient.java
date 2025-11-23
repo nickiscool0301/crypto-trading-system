@@ -3,7 +3,8 @@ package com.trading.system.infrastructure.adapter.exchange;
 import com.trading.system.domain.port.ExchangeClient;
 import com.trading.system.infrastructure.adapter.dto.HuobiTickersResponse;
 import com.trading.system.infrastructure.adapter.dto.HuobiTickerResponse;
-import lombok.RequiredArgsConstructor;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -14,13 +15,18 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class HuobiClient implements ExchangeClient {
 
     private static final String HUOBI_API_URL = "https://api.huobi.pro/market/tickers";
 
     private final WebClient webClient;
+    private final RateLimiter rateLimiter;
+
+    public HuobiClient(WebClient webClient, RateLimiterRegistry rateLimiterRegistry) {
+        this.webClient = webClient;
+        this.rateLimiter = rateLimiterRegistry.rateLimiter("huobi");
+    }
 
     @Override
     public String getExchangeName() {
@@ -34,12 +40,15 @@ public class HuobiClient implements ExchangeClient {
         var result = new HashMap<String, TickerPrice>();
 
         try {
-            // Get all available tickers
-            var response = webClient.get()
-                    .uri(HUOBI_API_URL)
-                    .retrieve()
-                    .bodyToMono(HuobiTickersResponse.class)
-                    .block();
+            var response = rateLimiter.executeSupplier(() -> {
+                log.info("Fetching Huobi tickers (rate limiter: {} available)",
+                        rateLimiter.getMetrics().getAvailablePermissions());
+                return webClient.get()
+                        .uri(HUOBI_API_URL)
+                        .retrieve()
+                        .bodyToMono(HuobiTickersResponse.class)
+                        .block();
+            });
 
             if (response == null || response.data() == null) {
                 log.warn("Huobi returned null response");

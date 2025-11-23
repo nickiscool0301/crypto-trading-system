@@ -34,3 +34,16 @@ server:
 trading:
   price:
     max-age-seconds: 30
+
+resilience4j:
+  ratelimiter:
+    instances:
+      binance:
+        limitForPeriod: 90
+        limitRefreshPeriod: 10s
+        timeoutDuration: 0s
+
+      huobi:
+        limitForPeriod: 90
+        limitRefreshPeriod: 10s
+        timeoutDuration: 0s

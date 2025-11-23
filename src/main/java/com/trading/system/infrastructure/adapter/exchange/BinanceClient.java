@@ -2,7 +2,8 @@ package com.trading.system.infrastructure.adapter.exchange;
 
 import com.trading.system.domain.port.ExchangeClient;
 import com.trading.system.infrastructure.adapter.dto.BinanceTickerResponse;
-import lombok.RequiredArgsConstructor;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -13,13 +14,18 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class BinanceClient implements ExchangeClient {
 
     private static final String BINANCE_API_URL = "https://api.binance.com/api/v3/ticker/bookTicker";
 
     private final WebClient webClient;
+    private final RateLimiter rateLimiter;
+
+    public BinanceClient(WebClient webClient, RateLimiterRegistry rateLimiterRegistry) {
+        this.webClient = webClient;
+        this.rateLimiter = rateLimiterRegistry.rateLimiter("binance");
+    }
 
     @Override
     public String getExchangeName() {
@@ -52,11 +58,15 @@ public class BinanceClient implements ExchangeClient {
     }
 
     private BinanceTickerResponse fetchTickerBySymbol(String symbol) {
-        String url = BINANCE_API_URL + "?symbol=" + symbol;
-        return webClient.get()
-                .uri(url)
-                .retrieve()
-                .bodyToMono(BinanceTickerResponse.class)
-                .block();
+        return rateLimiter.executeSupplier(() -> {
+            String url = BINANCE_API_URL + "?symbol=" + symbol;
+            log.info("Fetching Binance ticker for {} (rate limiter: {} available)",
+                    symbol, rateLimiter.getMetrics().getAvailablePermissions());
+            return webClient.get()
+                    .uri(url)
+                    .retrieve()
+                    .bodyToMono(BinanceTickerResponse.class)
+                    .block();
+        });
     }
 }
